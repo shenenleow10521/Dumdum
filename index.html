@@ -881,6 +881,16 @@ let dbP = null, userP = null;
 function getDb() { if (!dbP) dbP = (window.claude && window.claude.use) ? window.claude.use('db').catch(() => null) : Promise.resolve(null); return dbP; }
 function getUser() { if (!userP) userP = (window.claude && window.claude.use) ? window.claude.use('user').catch(() => null) : Promise.resolve(null); return userP; }
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const WEB3FORMS_KEY = '0f2a291d-516b-4adc-b45a-2f3635afe517';
+async function sendByEmail() {
+  const res = await fetch('https://api.web3forms.com/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ access_key: WEB3FORMS_KEY, subject: '她回复约会邀请啦 \u2665', from_name: '约会邀请', message: message() })
+  });
+  const j = await res.json();
+  if (!j.success) throw new Error(j.message || 'send failed');
+}
 function cantSend() {
   $('#sendNote').textContent = '这个链接发不出去，用“复制文字”发给他也一样哦';
   const sb = $('#send'); sb.disabled = false; sb.textContent = '发送给他 ✦';
@@ -891,7 +901,13 @@ $('#send').addEventListener('click', async e => {
   if (sb.disabled) return;
   sb.disabled = true; sb.textContent = '正在送出…';
   const db = await getDb();
-  if (!db) return cantSend();
+  if (!db) {
+    try { await sendByEmail(); } catch (_) { return cantSend(); }
+    sb.classList.add('sent'); sb.textContent = '已送到他手里 ✓';
+    $('#sendNote').textContent = '他的 Gmail 已经收到啦';
+    burst(sb, 20); confetti(90); heartRain(30);
+    return toast('送出去啦 ✦');
+  }
   const d = state.date;
   const body = {
     date: ymd(d),
